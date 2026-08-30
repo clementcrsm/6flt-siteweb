@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mode édition — [6flt] Photographie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ---- styles propres au mode édition ---- */
+    .admin-wrap { max-width: 1100px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 48px) 80px; }
+
+    .admin-panel {
+      background: var(--bg-alt);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .admin-panel h2 { font-size: 1.1rem; margin-bottom: 14px; }
+
+    .cfg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .cfg-grid label, .hint { font-size: 0.78rem; color: var(--text-dim); display: block; margin-bottom: 5px; }
+
+    .admin-wrap input[type="text"], .admin-wrap input[type="password"], .admin-wrap textarea {
+      width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+      color: var(--text); padding: 10px 12px; font: inherit; font-size: 0.9rem;
+    }
+
+    .hint { margin-top: 8px; line-height: 1.5; }
+    .hint a { text-decoration: underline; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tabs button {
+      background: var(--card); color: var(--text-dim); border: 1px solid var(--line);
+      border-radius: 999px; padding: 9px 22px; font: inherit; font-size: 0.85rem; cursor: pointer;
+    }
+    .tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+    /* dropzone */
+    .dropzone {
+      border: 2px dashed #45454d; border-radius: var(--radius); padding: 44px 20px;
+      text-align: center; color: var(--text-dim); cursor: pointer; transition: border-color .2s, background .2s;
+      margin-bottom: 22px;
+    }
+    .dropzone.dragover { border-color: var(--text); background: #1e1e22; color: var(--text); }
+    .dropzone strong { color: var(--text); }
+
+    /* grille photos éditable */
+    .edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .edit-item {
+      position: relative; border-radius: 6px; overflow: hidden; background: var(--card);
+      border: 1px solid var(--line); cursor: grab; user-select: none;
+    }
+    .edit-item img { width: 100%; aspect-ratio: 1; object-fit: cover; pointer-events: none; }
+    .edit-item.dragging { opacity: 0.35; }
+    .edit-item.drop-target { outline: 2px solid #fff; }
+    .edit-item .num {
+      position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.65); color: #fff;
+      font-size: 0.7rem; padding: 2px 7px; border-radius: 999px;
+    }
+    .edit-item .del {
+      position: absolute; top: 6px; right: 6px; background: rgba(180, 30, 30, .85); color: #fff;
+      border: none; border-radius: 999px; width: 24px; height: 24px; cursor: pointer; font-size: 0.85rem; line-height: 1;
+    }
+    .edit-item .movers { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 4px; }
+    .edit-item .movers button {
+      background: rgba(0,0,0,.65); color: #fff; border: none; border-radius: 4px;
+      width: 24px; height: 24px; cursor: pointer; font-size: 0.8rem; line-height: 1;
+    }
+
+    /* cartes packs éditables */
+    .pack-edit {
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 18px; margin-bottom: 14px; cursor: grab;
+    }
+    .pack-edit.dragging { opacity: 0.35; }
+    .pack-edit.drop-target { outline: 2px solid #fff; }
+    .pack-edit .row { display: grid; grid-template-columns: 1fr 220px; gap: 12px; margin-bottom: 10px; }
+    .pack-edit textarea { min-height: 90px; resize: vertical; }
+    .pack-edit .pack-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .pack-edit .pack-head span { font-size: 0.8rem; color: var(--text-dim); }
+    .pack-edit .movers button {
+      background: var(--bg-alt); color: var(--text); border: 1px solid var(--line); border-radius: 4px;
+      width: 30px; height: 30px; cursor: pointer; margin-left: 6px;
+    }
+    @media (max-width: 640px) { .pack-edit .row { grid-template-columns: 1fr; } }
+
+    /* barre de sauvegarde */
+    .save-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+      background: rgba(14,14,15,.92); backdrop-filter: blur(10px);
+      border-top: 1px solid var(--line); padding: 14px clamp(16px, 4vw, 48px);
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .save-bar .status { font-size: 0.85rem; color: var(--text-dim); }
+    .save-bar .status.ok { color: #7fd98a; }
+    .save-bar .status.err { color: #e58a8a; }
+    .save-bar button {
+      background: var(--text); color: var(--bg); border: 1px solid var(--text); border-radius: 999px;
+      padding: 11px 30px; font: inherit; font-size: 0.85rem; letter-spacing: 0.1em;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .save-bar button:disabled { opacity: 0.5; cursor: wait; }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="https://images-pw.pixieset.com/profile/1374721/2311687f576e08af9363599105e38ca0351d219378d4278c7f8010568081258e.png" alt="Logo [6flt]">
+      <span class="logo-text">_6flt_ · mode édition</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">← Retour au site</a>
+    </nav>
+  </header>
+
+  <div class="admin-wrap">
+
+    <section class="admin-panel" id="cfg-panel">
+      <h2>Connexion GitHub</h2>
+      <div class="cfg-grid">
+        <div>
+          <label for="cfg-owner">Utilisateur GitHub</label>
+          <input id="cfg-owner" type="text" placeholder="ex : clement6flt">
+        </div>
+        <div>
+          <label for="cfg-repo">Nom du dépôt</label>
+          <input id="cfg-repo" type="text" placeholder="ex : 6flt-site">
+        </div>
+        <div>
+          <label for="cfg-branch">Branche</label>
+          <input id="cfg-branch" type="text" value="main">
+        </div>
+        <div>
+          <label for="cfg-token">Token GitHub (fine-grained)</label>
+          <input id="cfg-token" type="password" placeholder="github_pat_…">
+        </div>
+      </div>
+      <p class="hint">
+        Le token reste uniquement dans ce navigateur (localStorage), il n'est envoyé qu'à l'API GitHub.
+        Pour le créer : GitHub → Settings → Developer settings → Fine-grained tokens →
+        accès limité à ce dépôt, permission « Contents : Read and write ».
+        Chaque sauvegarde publie automatiquement le site (1 à 2 minutes de délai).
+      </p>
+    </section>
+
+    <div class="tabs">
+      <button id="tab-photos" class="active">Photos du portfolio</button>
+      <button id="tab-packs">Formules (services)</button>
+    </div>
+
+    <section id="panel-photos">
+      <div id="dropzone" class="dropzone">
+        <strong>Glisse-dépose tes photos ici</strong><br>
+        (ou clique pour choisir des fichiers)<br>
+        <span style="font-size:.78rem">Elles sont redimensionnées automatiquement avant l'envoi.
+        Fais ensuite glisser les vignettes pour changer l'ordre.</span>
+        <input id="file-input" type="file" accept="image/*" multiple hidden>
+      </div>
+      <div id="photo-grid" class="edit-grid"></div>
+    </section>
+
+    <section id="panel-packs" hidden>
+      <p class="hint" style="margin-bottom:16px">Fais glisser une carte pour changer l'ordre des formules. Les textes sont modifiables directement.</p>
+      <div id="pack-list"></div>
+    </section>
+
+  </div>
+
+  <div class="save-bar">
+    <span id="status" class="status">Chargement…</span>
+    <button id="save-btn">Enregistrer &amp; publier</button>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
